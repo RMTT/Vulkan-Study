@@ -16,7 +16,7 @@
 const int WIDTH = 800;
 const int HEIGHT = 600;
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
+const int MAX_FRAMES_IN_FLIGHT = 60;
 
 const std::vector<const char *> validationLayers = {
         "VK_LAYER_KHRONOS_validation"
@@ -209,7 +209,6 @@ private:
             createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT *) &debugCreateInfo;
         } else {
             createInfo.enabledLayerCount = 0;
-
             createInfo.pNext = nullptr;
         }
 
@@ -258,9 +257,9 @@ private:
         std::vector<VkPhysicalDevice> devices(deviceCount);
         vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-        for (const auto &device : devices) {
-            if (isDeviceSuitable(device)) {
-                physicalDevice = device;
+        for (const auto &d : devices) {
+            if (isDeviceSuitable(d)) {
+                physicalDevice = d;
                 break;
             }
         }
@@ -268,6 +267,11 @@ private:
         if (physicalDevice == VK_NULL_HANDLE) {
             throw std::runtime_error("failed to find a suitable GPU!");
         }
+
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(physicalDevice, &deviceProperties);
+
+        std::cout << "Device Name: " << deviceProperties.deviceName << std::endl;
     }
 
     void createLogicalDevice() {
@@ -778,14 +782,14 @@ private:
         return details;
     }
 
-    bool isDeviceSuitable(VkPhysicalDevice device) {
-        QueueFamilyIndices indices = findQueueFamilies(device);
+    bool isDeviceSuitable(VkPhysicalDevice pDevice) {
+        QueueFamilyIndices indices = findQueueFamilies(pDevice);
 
-        bool extensionsSupported = checkDeviceExtensionSupport(device);
+        bool extensionsSupported = checkDeviceExtensionSupport(pDevice);
 
         bool swapChainAdequate = false;
         if (extensionsSupported) {
-            SwapChainSupportDetails swapChainSupport = querySwapChainSupport(device);
+            SwapChainSupportDetails swapChainSupport = querySwapChainSupport(pDevice);
             swapChainAdequate = !swapChainSupport.formats.empty() && !swapChainSupport.presentModes.empty();
         }
 
@@ -808,14 +812,20 @@ private:
         return requiredExtensions.empty();
     }
 
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device) {
+    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice pDevice) const {
+        VkPhysicalDeviceProperties deviceProperties;
+        vkGetPhysicalDeviceProperties(pDevice, &deviceProperties);
+
         QueueFamilyIndices indices;
 
         uint32_t queueFamilyCount = 0;
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+        vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &queueFamilyCount, nullptr);
+
+        std::cout << "Device " << deviceProperties.deviceName << " support QueueFamily Count: " << queueFamilyCount
+                  << std::endl;
 
         std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-        vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+        vkGetPhysicalDeviceQueueFamilyProperties(pDevice, &queueFamilyCount, queueFamilies.data());
 
         int i = 0;
         for (const auto &queueFamily : queueFamilies) {
@@ -824,7 +834,7 @@ private:
             }
 
             VkBool32 presentSupport = false;
-            vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+            vkGetPhysicalDeviceSurfaceSupportKHR(pDevice, i, surface, &presentSupport);
 
             if (presentSupport) {
                 indices.presentFamily = i;
@@ -841,6 +851,11 @@ private:
     }
 
     std::vector<const char *> getRequiredExtensions() {
+        uint32_t availableExtensionCount = 0;
+        vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, nullptr);
+        std::vector<VkExtensionProperties> availableExtensions(availableExtensionCount);
+        vkEnumerateInstanceExtensionProperties(nullptr, &availableExtensionCount, availableExtensions.data());
+
         uint32_t glfwExtensionCount = 0;
         const char **glfwExtensions;
         glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
@@ -851,6 +866,18 @@ private:
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
         }
 
+        for (auto name : extensions) {
+            bool contained = false;
+            for (const auto &extensionProperties: availableExtensions) {
+                if (strcmp(extensionProperties.extensionName, name) != 0) {
+                    contained = true;
+                    break;
+                }
+            }
+            if (!contained) {
+                std::cerr << "No extension available: " << name << std::endl;
+            }
+        }
         return extensions;
     }
 
