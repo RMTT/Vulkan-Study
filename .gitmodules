@@ -6,3 +6,6 @@
 	path = submodules/glm
 	url = https://github.com/g-truc/glm.git
 	branch = stable
+[submodule ".\\submodules\\stb"]
+	path = .\\submodules\\stb
+	url = https://github.com/nothings/stb.git
