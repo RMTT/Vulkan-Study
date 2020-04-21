@@ -2,3 +2,9 @@
 ### Hello Triangle
 #### Code Structure
 ![Code Structure](https://github.com/RMTT/Vulkan-Study/blob/master/resources/Code%20Structure.png)
+#### Compile
+```shell script
+cmake . -B build
+cd build
+cmake
+```
